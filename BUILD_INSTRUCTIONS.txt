@@ -1,0 +1,18 @@
+Multilogin Window Manager - Build Instructions
+==============================================
+
+OPTION 1: Run directly with Python
+-----------------------------------
+1. Install Python 3.8+ from https://python.org
+2. Open Command Prompt in this folder
+3. Run: python mlm_window_manager.py
+
+OPTION 2: Build as .exe (Windows only)
+--------------------------------------
+1. Install Python 3.8+ from https://python.org
+2. Open Command Prompt in this folder
+3. Run: pip install pyinstaller
+4. Run: pyinstaller --onefile --windowed --name "MLM_Window_Manager" mlm_window_manager.py
+5. The .exe will be in the "dist" folder
+
+Note: The tool uses Windows APIs, so it only works on Windows.
