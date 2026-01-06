@@ -20,6 +20,15 @@ from ctypes import wintypes
 import threading
 import time
 import re
+import os
+from datetime import datetime
+
+# Try to import PIL for screenshots
+try:
+    from PIL import ImageGrab
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 # Windows API constants
 SW_MINIMIZE = 6
@@ -39,7 +48,7 @@ psapi = ctypes.windll.psapi
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.6")
+        self.root.title("Multilogin Window Manager v1.7")
         self.root.geometry("500x500")
         self.root.resizable(True, True)
 
@@ -128,6 +137,11 @@ class MultiloginWindowManager:
         # Selection buttons
         ttk.Button(btn_frame, text="Select All", width=10, command=self.select_all).pack(pady=2)
         ttk.Button(btn_frame, text="Deselect All", width=10, command=self.deselect_all).pack(pady=2)
+
+        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+
+        # Screenshot button
+        ttk.Button(btn_frame, text="Screenshot", width=10, command=self.take_screenshot).pack(pady=2)
 
         # Left side - Profile list with checkboxes
         list_frame = ttk.Frame(content_frame)
@@ -395,6 +409,38 @@ class MultiloginWindowManager:
         for var in self.checkbox_vars.values():
             var.set(False)
         self.status_var.set("Deselected all profiles")
+
+    def take_screenshot(self):
+        """Take screenshot of the MLM Window Manager and save to Screenshots folder"""
+        if not HAS_PIL:
+            messagebox.showerror("Error", "PIL/Pillow not installed.\nRun: pip install Pillow")
+            return
+
+        # Create Screenshots folder next to the exe/script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        screenshots_dir = os.path.join(script_dir, "Screenshots")
+        if not os.path.exists(screenshots_dir):
+            os.makedirs(screenshots_dir)
+
+        # Get window position
+        x = self.root.winfo_rootx()
+        y = self.root.winfo_rooty()
+        width = self.root.winfo_width()
+        height = self.root.winfo_height()
+
+        # Capture screenshot
+        screenshot = ImageGrab.grab(bbox=(x, y, x + width, y + height))
+
+        # Save with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"MLM_Screenshot_{timestamp}.png"
+        filepath = os.path.join(screenshots_dir, filename)
+        screenshot.save(filepath)
+
+        self.status_var.set(f"Saved: {filename}")
+
+        # Open the Screenshots folder
+        os.startfile(screenshots_dir)
 
     def show_checked(self):
         checked = self.get_checked_profiles()

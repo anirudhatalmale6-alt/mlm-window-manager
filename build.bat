@@ -17,9 +17,9 @@ if errorlevel 1 (
 echo Python found!
 echo.
 
-REM Install PyInstaller
-echo Installing PyInstaller...
-pip install pyinstaller
+REM Install dependencies
+echo Installing dependencies...
+pip install pyinstaller Pillow
 echo.
 
 REM Build the executable
