@@ -110,10 +110,11 @@ class MultiloginWindowManager:
         list_frame = ttk.Frame(content_frame)
         list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Column headers
+        # Column headers with profile count
         header_frame = ttk.Frame(list_frame)
         header_frame.pack(fill=tk.X)
-        ttk.Label(header_frame, text="Profile", width=15, anchor=tk.W, font=("", 9, "bold")).pack(side=tk.LEFT, padx=(20, 5))
+        self.profile_count_label = ttk.Label(header_frame, text="Profile (0)", width=15, anchor=tk.W, font=("", 9, "bold"))
+        self.profile_count_label.pack(side=tk.LEFT, padx=(20, 5))
         ttk.Label(header_frame, text="Tab", anchor=tk.W, font=("", 9, "bold")).pack(side=tk.LEFT, padx=5)
 
         # Scrollable list
@@ -163,11 +164,8 @@ class MultiloginWindowManager:
         ttk.Button(btn_frame, text="Select All", width=10, command=self.select_all).pack(pady=2)
         ttk.Button(btn_frame, text="Deselect All", width=10, command=self.deselect_all).pack(pady=2)
 
-        # URL input frame at bottom
-        url_frame = ttk.LabelFrame(self.main_frame, text="Open URL in Selected Profiles")
-        url_frame.pack(fill=tk.X, padx=5, pady=5)
-
-        url_row = ttk.Frame(url_frame)
+        # URL input at bottom (no frame, like original)
+        url_row = ttk.Frame(self.main_frame)
         url_row.pack(fill=tk.X, padx=5, pady=5)
 
         self.url_entry = ttk.Entry(url_row)
@@ -333,7 +331,9 @@ class MultiloginWindowManager:
             tab_label.bind("<Button-1>", lambda e, idx=i: self.on_profile_click(idx))
             tab_label.bind("<Double-1>", lambda e, idx=i: self.show_profile(idx))
 
-        self.status_var.set(f"Profile ({len(self.profiles)})")
+        # Update profile count in header
+        self.profile_count_label.config(text=f"Profile ({len(self.profiles)})")
+        self.status_var.set("Ready")
 
     def on_profile_click(self, index):
         if index in self.checkbox_vars:
@@ -453,17 +453,19 @@ class MultiloginWindowManager:
 
     def send_url_to_window(self, hwnd, url):
         VK_CONTROL = 0x11
-        VK_L = 0x4C
+        VK_T = 0x54  # T key for new tab
         VK_RETURN = 0x0D
         VK_V = 0x56
 
+        # Open new tab with Ctrl+T
         user32.keybd_event(VK_CONTROL, 0, 0, 0)
-        user32.keybd_event(VK_L, 0, 0, 0)
-        user32.keybd_event(VK_L, 0, 2, 0)
+        user32.keybd_event(VK_T, 0, 0, 0)
+        user32.keybd_event(VK_T, 0, 2, 0)
         user32.keybd_event(VK_CONTROL, 0, 2, 0)
 
-        time.sleep(0.1)
+        time.sleep(0.15)
 
+        # Copy URL to clipboard and paste
         self.root.clipboard_clear()
         self.root.clipboard_append(url)
 
@@ -474,6 +476,7 @@ class MultiloginWindowManager:
 
         time.sleep(0.1)
 
+        # Press Enter to navigate
         user32.keybd_event(VK_RETURN, 0, 0, 0)
         user32.keybd_event(VK_RETURN, 0, 2, 0)
 
