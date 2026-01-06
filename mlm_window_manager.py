@@ -45,10 +45,23 @@ user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 psapi = ctypes.windll.psapi
 
+def get_screen_size():
+    """Get screen width and height"""
+    return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+
+def resize_window_33(hwnd, index=0):
+    """Resize window to 33% of screen width and position it"""
+    screen_w, screen_h = get_screen_size()
+    win_w = screen_w // 3
+    win_h = screen_h - 40  # Leave space for taskbar
+    x = (index % 3) * win_w  # Position based on index (0, 1, 2)
+    y = 0
+    user32.MoveWindow(hwnd, x, y, win_w, win_h, True)
+
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.7")
+        self.root.title("Multilogin Window Manager v1.8")
         self.root.geometry("500x500")
         self.root.resizable(True, True)
 
@@ -447,11 +460,12 @@ class MultiloginWindowManager:
         if not checked:
             self.status_var.set("No profiles selected")
             return
-        for profile in checked:
+        for i, profile in enumerate(checked):
             user32.ShowWindow(profile["hwnd"], SW_RESTORE)
+            resize_window_33(profile["hwnd"], i)  # Resize to 33% and position
             user32.SetForegroundWindow(profile["hwnd"])
             time.sleep(0.1)
-        self.status_var.set(f"Showing {len(checked)} selected profiles")
+        self.status_var.set(f"Showing {len(checked)} profiles at 33% size")
 
     def minimize_checked(self):
         checked = self.get_checked_profiles()
@@ -474,9 +488,10 @@ class MultiloginWindowManager:
             self.root.after(1000, self.refresh_profiles)
 
     def show_all(self):
-        for profile in self.profiles:
+        for i, profile in enumerate(self.profiles):
             user32.ShowWindow(profile["hwnd"], SW_RESTORE)
-        self.status_var.set(f"Showing all {len(self.profiles)} profiles")
+            resize_window_33(profile["hwnd"], i)  # Resize to 33% and position
+        self.status_var.set(f"Showing all {len(self.profiles)} profiles at 33% size")
 
     def minimize_all(self):
         for profile in self.profiles:
