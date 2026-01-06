@@ -1,5 +1,5 @@
 """
-Multilogin Window Manager v1.1
+Multilogin Window Manager v1.2
 A tool to manage Multilogin X browser profile windows.
 
 Features:
@@ -17,8 +17,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import ctypes
 from ctypes import wintypes
-import subprocess
-import json
 import threading
 import time
 import re
@@ -41,15 +39,15 @@ psapi = ctypes.windll.psapi
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.1")
-        self.root.geometry("550x650")
+        self.root.title("Multilogin Window Manager v1.2")
+        self.root.geometry("450x500")
         self.root.resizable(True, True)
 
         # Profile data
         self.profiles = []
         self.selected_index = None
 
-        # Checkbox states - dictionary of profile index -> BooleanVar
+        # Checkbox states
         self.checkbox_vars = {}
 
         # Create UI
@@ -85,43 +83,46 @@ class MultiloginWindowManager:
 
         # === Main Tab Content ===
 
-        # Options frame
-        options_frame = ttk.Frame(self.main_frame)
-        options_frame.pack(fill=tk.X, padx=5, pady=5)
+        # Top options frame (Hotkeys, On top checkboxes)
+        top_options = ttk.Frame(self.main_frame)
+        top_options.pack(fill=tk.X, padx=5, pady=2)
 
         self.hotkeys_var = tk.BooleanVar(value=True)
-        self.hotkeys_cb = ttk.Checkbutton(options_frame, text="Hotkeys", variable=self.hotkeys_var)
-        self.hotkeys_cb.pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(top_options, text="Hotkeys", variable=self.hotkeys_var).pack(side=tk.RIGHT, padx=5)
 
         self.ontop_var = tk.BooleanVar(value=False)
-        self.ontop_cb = ttk.Checkbutton(options_frame, text="On top", variable=self.ontop_var,
-                                         command=self.toggle_ontop)
-        self.ontop_cb.pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(top_options, text="On top", variable=self.ontop_var,
+                        command=self.toggle_ontop).pack(side=tk.RIGHT, padx=5)
 
         # Navigation buttons
         nav_frame = ttk.Frame(self.main_frame)
-        nav_frame.pack(fill=tk.X, padx=5, pady=5)
+        nav_frame.pack(fill=tk.X, padx=5, pady=2)
 
-        ttk.Button(nav_frame, text="<<<", width=8, command=self.nav_prev).pack(side=tk.LEFT, padx=2)
-        ttk.Button(nav_frame, text="TOP", width=8, command=self.nav_top).pack(side=tk.LEFT, padx=2)
-        ttk.Button(nav_frame, text=">>>", width=8, command=self.nav_next).pack(side=tk.LEFT, padx=2)
-        ttk.Button(nav_frame, text="Refresh", width=8, command=self.refresh_profiles).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(nav_frame, text="<<<", width=6, command=self.nav_prev).pack(side=tk.LEFT, padx=2)
+        ttk.Button(nav_frame, text="TOP", width=6, command=self.nav_top).pack(side=tk.LEFT, padx=2)
+        ttk.Button(nav_frame, text=">>>", width=6, command=self.nav_next).pack(side=tk.LEFT, padx=2)
 
-        # Selection buttons
-        select_frame = ttk.Frame(self.main_frame)
-        select_frame.pack(fill=tk.X, padx=5, pady=2)
+        # Main content area with list on left and buttons on right
+        content_frame = ttk.Frame(self.main_frame)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        ttk.Button(select_frame, text="Select All", width=10, command=self.select_all).pack(side=tk.LEFT, padx=2)
-        ttk.Button(select_frame, text="Deselect All", width=10, command=self.deselect_all).pack(side=tk.LEFT, padx=2)
-        ttk.Button(select_frame, text="Invert", width=8, command=self.invert_selection).pack(side=tk.LEFT, padx=2)
+        # Left side - Profile list with checkboxes
+        list_frame = ttk.Frame(content_frame)
+        list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Profile list frame with canvas for checkboxes
-        list_container = ttk.LabelFrame(self.main_frame, text="Profiles")
-        list_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Column headers
+        header_frame = ttk.Frame(list_frame)
+        header_frame.pack(fill=tk.X)
+        ttk.Label(header_frame, text="Profile", width=15, anchor=tk.W, font=("", 9, "bold")).pack(side=tk.LEFT, padx=(20, 5))
+        ttk.Label(header_frame, text="Tab", anchor=tk.W, font=("", 9, "bold")).pack(side=tk.LEFT, padx=5)
 
-        # Create canvas with scrollbar for the checkbox list
-        self.canvas = tk.Canvas(list_container, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(list_container, orient=tk.VERTICAL, command=self.canvas.yview)
+        # Scrollable list
+        list_container = ttk.Frame(list_frame)
+        list_container.pack(fill=tk.BOTH, expand=True)
+
+        self.canvas = tk.Canvas(list_container, highlightthickness=0, bg="white")
+        scrollbar_y = ttk.Scrollbar(list_container, orient=tk.VERTICAL, command=self.canvas.yview)
+        scrollbar_x = ttk.Scrollbar(list_container, orient=tk.HORIZONTAL, command=self.canvas.xview)
         self.scrollable_frame = ttk.Frame(self.canvas)
 
         self.scrollable_frame.bind(
@@ -130,64 +131,50 @@ class MultiloginWindowManager:
         )
 
         self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=scrollbar.set)
+        self.canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
 
-        # Bind canvas resize to adjust scrollable frame width
         self.canvas.bind('<Configure>', self.on_canvas_configure)
-
-        # Bind mousewheel
         self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Column headers
-        header_frame = ttk.Frame(self.scrollable_frame)
-        header_frame.pack(fill=tk.X, pady=2)
-        ttk.Label(header_frame, text="", width=3).pack(side=tk.LEFT)  # Checkbox column
-        ttk.Label(header_frame, text="Profile", width=18, anchor=tk.W, font=("", 9, "bold")).pack(side=tk.LEFT, padx=2)
-        ttk.Label(header_frame, text="Current Tab", anchor=tk.W, font=("", 9, "bold")).pack(side=tk.LEFT, padx=2, fill=tk.X, expand=True)
+        # Right side - Buttons
+        btn_frame = ttk.Frame(content_frame)
+        btn_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
 
-        ttk.Separator(self.scrollable_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=2)
+        # Single profile buttons
+        ttk.Button(btn_frame, text="Show", width=10, command=self.show_checked).pack(pady=2)
+        ttk.Button(btn_frame, text="Minimize", width=10, command=self.minimize_checked).pack(pady=2)
+        ttk.Button(btn_frame, text="RefreshAll", width=10, command=self.refresh_profiles).pack(pady=2)
+        ttk.Button(btn_frame, text="Close", width=10, command=self.close_checked).pack(pady=2)
 
-        # Profile rows container
-        self.profile_rows_frame = ttk.Frame(self.scrollable_frame)
-        self.profile_rows_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Selected profile buttons
-        selected_frame = ttk.LabelFrame(self.main_frame, text="Selected Profiles Actions")
-        selected_frame.pack(fill=tk.X, padx=5, pady=5)
-
-        btn_row1 = ttk.Frame(selected_frame)
-        btn_row1.pack(fill=tk.X, pady=2)
-
-        ttk.Button(btn_row1, text="Show Selected", width=14, command=self.show_checked).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row1, text="Minimize Selected", width=14, command=self.minimize_checked).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row1, text="Close Selected", width=14, command=self.close_checked).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
 
         # All profiles buttons
-        all_frame = ttk.LabelFrame(self.main_frame, text="All Profiles Actions")
-        all_frame.pack(fill=tk.X, padx=5, pady=5)
+        ttk.Button(btn_frame, text="Show All", width=10, command=self.show_all).pack(pady=2)
+        ttk.Button(btn_frame, text="MinimizeAll", width=10, command=self.minimize_all).pack(pady=2)
+        ttk.Button(btn_frame, text="Close All", width=10, command=self.close_all).pack(pady=2)
 
-        btn_row2 = ttk.Frame(all_frame)
-        btn_row2.pack(fill=tk.X, pady=2)
+        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
 
-        ttk.Button(btn_row2, text="Show All", width=12, command=self.show_all).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row2, text="Minimize All", width=12, command=self.minimize_all).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_row2, text="Close All", width=12, command=self.close_all).pack(side=tk.LEFT, padx=2)
+        # Selection buttons
+        ttk.Button(btn_frame, text="Select All", width=10, command=self.select_all).pack(pady=2)
+        ttk.Button(btn_frame, text="Deselect All", width=10, command=self.deselect_all).pack(pady=2)
 
-        # URL input frame
+        # URL input frame at bottom
         url_frame = ttk.LabelFrame(self.main_frame, text="Open URL in Selected Profiles")
         url_frame.pack(fill=tk.X, padx=5, pady=5)
 
         url_row = ttk.Frame(url_frame)
         url_row.pack(fill=tk.X, padx=5, pady=5)
 
-        self.url_entry = ttk.Entry(url_row, width=50)
-        self.url_entry.pack(side=tk.LEFT, padx=2, fill=tk.X, expand=True)
+        self.url_entry = ttk.Entry(url_row)
+        self.url_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self.url_entry.insert(0, "https://")
 
-        ttk.Button(url_row, text="Apply", width=10, command=self.open_url_checked).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(url_row, text="Apply", width=8, command=self.open_url_checked).pack(side=tk.RIGHT)
 
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
@@ -215,7 +202,7 @@ class MultiloginWindowManager:
         about_content = ttk.Frame(self.about_frame)
         about_content.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        ttk.Label(about_content, text="Multilogin Window Manager v1.1", font=("", 12, "bold")).pack(pady=10)
+        ttk.Label(about_content, text="Multilogin Window Manager v1.2", font=("", 12, "bold")).pack(pady=10)
         ttk.Label(about_content, text="Manage your Multilogin X browser profiles easily.").pack()
         ttk.Label(about_content, text="").pack()
         ttk.Label(about_content, text="Features:").pack(anchor=tk.W)
@@ -226,42 +213,34 @@ class MultiloginWindowManager:
         ttk.Label(about_content, text="- Hotkeys support").pack(anchor=tk.W)
 
     def on_canvas_configure(self, event):
-        """Handle canvas resize"""
         self.canvas.itemconfig(self.canvas_window, width=event.width)
 
     def on_mousewheel(self, event):
-        """Handle mousewheel scrolling"""
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def setup_hotkeys(self):
-        """Setup global hotkeys using keyboard listener"""
         self.root.bind("<Control-Shift-Left>", lambda e: self.nav_prev())
         self.root.bind("<Control-Shift-Right>", lambda e: self.nav_next())
         self.root.bind("<Control-Shift-Up>", lambda e: self.show_current())
         self.root.bind("<Control-Shift-h>", lambda e: self.toggle_hotkeys())
 
     def toggle_ontop(self):
-        """Toggle always on top"""
         self.root.attributes("-topmost", self.ontop_var.get())
 
     def toggle_hotkeys(self):
-        """Toggle hotkeys on/off"""
         self.hotkeys_var.set(not self.hotkeys_var.get())
 
     def get_multilogin_windows(self):
-        """Find all Multilogin browser windows"""
         windows = []
 
         def enum_callback(hwnd, _):
             if user32.IsWindowVisible(hwnd):
-                # Get window title
                 length = user32.GetWindowTextLengthW(hwnd)
                 if length > 0:
                     buff = ctypes.create_unicode_buffer(length + 1)
                     user32.GetWindowTextW(hwnd, buff, length + 1)
                     title = buff.value
 
-                    # Get process name
                     pid = wintypes.DWORD()
                     user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
 
@@ -273,9 +252,7 @@ class MultiloginWindowManager:
                             kernel32.CloseHandle(handle)
                             exe_name = exe_path.value.split("\\")[-1].lower()
 
-                            # Check if it's a Multilogin browser (usually mimic browser or chrome-based)
                             if "mimic" in exe_name or ("chrome" in exe_name and self.is_multilogin_profile(title)):
-                                # Extract profile name from title
                                 profile_name = self.extract_profile_name(title)
                                 tab_title = self.extract_tab_title(title)
 
@@ -290,97 +267,80 @@ class MultiloginWindowManager:
                         pass
             return True
 
-        # Enum windows callback type
         EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
         user32.EnumWindows(EnumWindowsProc(enum_callback), 0)
 
         return windows
 
     def is_multilogin_profile(self, title):
-        """Check if window title indicates a Multilogin profile"""
         indicators = ["--proxy", "DC", "Profile", "Mimic"]
         return any(ind in title for ind in indicators)
 
     def extract_profile_name(self, title):
-        """Extract profile name from window title"""
-        # Pattern 1: DC## format
         match = re.search(r'(DC\d+)', title)
         if match:
             return match.group(1)
 
-        # Pattern 2: Before " - " separator
         if " - " in title:
             parts = title.split(" - ")
             if len(parts) >= 2:
-                return parts[0][:20] + "..." if len(parts[0]) > 20 else parts[0]
+                return parts[0][:18] + ".." if len(parts[0]) > 18 else parts[0]
 
-        # Pattern 3: First part before common browser indicators
         for sep in [" --", " |", " —"]:
             if sep in title:
-                return title.split(sep)[0][:20]
+                return title.split(sep)[0][:18]
 
-        return title[:20] + "..." if len(title) > 20 else title
+        return title[:18] + ".." if len(title) > 18 else title
 
     def extract_tab_title(self, title):
-        """Extract current tab title from window title"""
         if " - " in title:
             parts = title.split(" - ")
             if len(parts) >= 2:
                 tab = parts[-2] if len(parts) > 2 else parts[-1]
-                return tab[:40] + "..." if len(tab) > 40 else tab
+                return tab[:20] + ".." if len(tab) > 20 else tab
 
-        return title[:40] + "..." if len(title) > 40 else title
+        return title[:20] + ".." if len(title) > 20 else title
 
     def refresh_profiles(self):
-        """Refresh the profile list with checkboxes"""
-        # Save current checkbox states before refresh
         old_states = {}
         for i, var in self.checkbox_vars.items():
             if i < len(self.profiles):
-                # Use profile title as key to preserve state across refreshes
                 old_states[self.profiles[i]["title"]] = var.get()
 
         self.profiles = self.get_multilogin_windows()
 
-        # Clear existing profile rows
-        for widget in self.profile_rows_frame.winfo_children():
+        for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
         self.checkbox_vars = {}
 
-        # Add profile rows with checkboxes
         for i, profile in enumerate(self.profiles):
-            row_frame = ttk.Frame(self.profile_rows_frame)
+            row_frame = ttk.Frame(self.scrollable_frame)
             row_frame.pack(fill=tk.X, pady=1)
 
-            # Checkbox
             var = tk.BooleanVar(value=old_states.get(profile["title"], False))
             self.checkbox_vars[i] = var
             cb = ttk.Checkbutton(row_frame, variable=var)
             cb.pack(side=tk.LEFT, padx=2)
 
-            # Profile name (clickable to show window)
-            profile_label = ttk.Label(row_frame, text=profile["profile"], width=18, anchor=tk.W, cursor="hand2")
+            profile_label = ttk.Label(row_frame, text=profile["profile"], width=15, anchor=tk.W, cursor="hand2")
             profile_label.pack(side=tk.LEFT, padx=2)
             profile_label.bind("<Button-1>", lambda e, idx=i: self.on_profile_click(idx))
             profile_label.bind("<Double-1>", lambda e, idx=i: self.show_profile(idx))
 
-            # Tab title
             tab_label = ttk.Label(row_frame, text=profile["tab"], anchor=tk.W)
             tab_label.pack(side=tk.LEFT, padx=2, fill=tk.X, expand=True)
             tab_label.bind("<Button-1>", lambda e, idx=i: self.on_profile_click(idx))
             tab_label.bind("<Double-1>", lambda e, idx=i: self.show_profile(idx))
 
-        self.status_var.set(f"Found {len(self.profiles)} profile(s)")
+        self.status_var.set(f"Profile ({len(self.profiles)})")
 
     def on_profile_click(self, index):
-        """Handle single click on profile - toggle checkbox"""
         if index in self.checkbox_vars:
             self.checkbox_vars[index].set(not self.checkbox_vars[index].get())
         self.selected_index = index
 
     def show_profile(self, index):
-        """Show specific profile window"""
         if index < len(self.profiles):
             profile = self.profiles[index]
             hwnd = profile["hwnd"]
@@ -389,7 +349,6 @@ class MultiloginWindowManager:
             self.status_var.set(f"Showing: {profile['profile']}")
 
     def auto_refresh(self):
-        """Auto refresh in background"""
         while self.running:
             try:
                 interval = int(self.refresh_interval.get())
@@ -400,7 +359,6 @@ class MultiloginWindowManager:
                 self.root.after(0, self.refresh_profiles)
 
     def get_checked_profiles(self):
-        """Get list of profiles that are checked"""
         checked = []
         for i, var in self.checkbox_vars.items():
             if var.get() and i < len(self.profiles):
@@ -408,26 +366,16 @@ class MultiloginWindowManager:
         return checked
 
     def select_all(self):
-        """Select all checkboxes"""
         for var in self.checkbox_vars.values():
             var.set(True)
         self.status_var.set(f"Selected all {len(self.profiles)} profiles")
 
     def deselect_all(self):
-        """Deselect all checkboxes"""
         for var in self.checkbox_vars.values():
             var.set(False)
         self.status_var.set("Deselected all profiles")
 
-    def invert_selection(self):
-        """Invert checkbox selection"""
-        for var in self.checkbox_vars.values():
-            var.set(not var.get())
-        count = len(self.get_checked_profiles())
-        self.status_var.set(f"Inverted selection: {count} selected")
-
     def show_checked(self):
-        """Show all checked profile windows"""
         checked = self.get_checked_profiles()
         if not checked:
             self.status_var.set("No profiles selected")
@@ -439,7 +387,6 @@ class MultiloginWindowManager:
         self.status_var.set(f"Showing {len(checked)} selected profiles")
 
     def minimize_checked(self):
-        """Minimize all checked profile windows"""
         checked = self.get_checked_profiles()
         if not checked:
             self.status_var.set("No profiles selected")
@@ -449,7 +396,6 @@ class MultiloginWindowManager:
         self.status_var.set(f"Minimized {len(checked)} selected profiles")
 
     def close_checked(self):
-        """Close all checked profile windows"""
         checked = self.get_checked_profiles()
         if not checked:
             self.status_var.set("No profiles selected")
@@ -461,19 +407,16 @@ class MultiloginWindowManager:
             self.root.after(1000, self.refresh_profiles)
 
     def show_all(self):
-        """Show all profile windows"""
         for profile in self.profiles:
             user32.ShowWindow(profile["hwnd"], SW_RESTORE)
         self.status_var.set(f"Showing all {len(self.profiles)} profiles")
 
     def minimize_all(self):
-        """Minimize all profile windows"""
         for profile in self.profiles:
             user32.ShowWindow(profile["hwnd"], SW_MINIMIZE)
         self.status_var.set(f"Minimized all {len(self.profiles)} profiles")
 
     def close_all(self):
-        """Close all profile windows"""
         if self.profiles and messagebox.askyesno("Confirm", f"Close all {len(self.profiles)} profiles?"):
             for profile in self.profiles:
                 user32.PostMessageW(profile["hwnd"], WM_CLOSE, 0, 0)
@@ -481,7 +424,6 @@ class MultiloginWindowManager:
             self.root.after(1000, self.refresh_profiles)
 
     def open_url_checked(self):
-        """Open URL in all checked profile browsers"""
         url = self.url_entry.get().strip()
         if not url or url == "https://":
             messagebox.showwarning("Warning", "Please enter a valid URL")
@@ -492,7 +434,6 @@ class MultiloginWindowManager:
 
         checked = self.get_checked_profiles()
         if not checked:
-            # If nothing selected, apply to all profiles
             if messagebox.askyesno("No Selection", "No profiles selected. Apply to ALL profiles?"):
                 checked = self.profiles
             else:
@@ -511,13 +452,11 @@ class MultiloginWindowManager:
         self.status_var.set(f"Opened URL in {count} profiles")
 
     def send_url_to_window(self, hwnd, url):
-        """Send URL to browser window"""
         VK_CONTROL = 0x11
         VK_L = 0x4C
         VK_RETURN = 0x0D
         VK_V = 0x56
 
-        # Focus address bar with Ctrl+L
         user32.keybd_event(VK_CONTROL, 0, 0, 0)
         user32.keybd_event(VK_L, 0, 0, 0)
         user32.keybd_event(VK_L, 0, 2, 0)
@@ -525,11 +464,9 @@ class MultiloginWindowManager:
 
         time.sleep(0.1)
 
-        # Use clipboard to paste URL
         self.root.clipboard_clear()
         self.root.clipboard_append(url)
 
-        # Paste with Ctrl+V
         user32.keybd_event(VK_CONTROL, 0, 0, 0)
         user32.keybd_event(VK_V, 0, 0, 0)
         user32.keybd_event(VK_V, 0, 2, 0)
@@ -537,17 +474,14 @@ class MultiloginWindowManager:
 
         time.sleep(0.1)
 
-        # Press Enter
         user32.keybd_event(VK_RETURN, 0, 0, 0)
         user32.keybd_event(VK_RETURN, 0, 2, 0)
 
     def show_current(self):
-        """Show currently selected profile"""
         if self.selected_index is not None and self.selected_index < len(self.profiles):
             self.show_profile(self.selected_index)
 
     def nav_prev(self):
-        """Navigate to previous profile"""
         if not self.profiles:
             return
         if self.selected_index is None:
@@ -557,7 +491,6 @@ class MultiloginWindowManager:
         self.show_profile(self.selected_index)
 
     def nav_next(self):
-        """Navigate to next profile"""
         if not self.profiles:
             return
         if self.selected_index is None:
@@ -567,13 +500,11 @@ class MultiloginWindowManager:
         self.show_profile(self.selected_index)
 
     def nav_top(self):
-        """Navigate to first profile and bring to front"""
         if self.profiles:
             self.selected_index = 0
             self.show_profile(0)
 
     def on_close(self):
-        """Handle window close"""
         self.running = False
         self.root.destroy()
 
@@ -581,7 +512,6 @@ class MultiloginWindowManager:
 def main():
     root = tk.Tk()
 
-    # Set icon if available
     try:
         root.iconbitmap("icon.ico")
     except:
