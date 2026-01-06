@@ -39,8 +39,8 @@ psapi = ctypes.windll.psapi
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.2")
-        self.root.geometry("450x500")
+        self.root.title("Multilogin Window Manager v1.4")
+        self.root.geometry("500x500")
         self.root.resizable(True, True)
 
         # Profile data
@@ -106,6 +106,29 @@ class MultiloginWindowManager:
         content_frame = ttk.Frame(self.main_frame)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
+        # Right side - Buttons (pack FIRST so they get priority space)
+        btn_frame = ttk.Frame(content_frame)
+        btn_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+
+        # Single profile buttons
+        ttk.Button(btn_frame, text="Show", width=10, command=self.show_checked).pack(pady=2)
+        ttk.Button(btn_frame, text="Minimize", width=10, command=self.minimize_checked).pack(pady=2)
+        ttk.Button(btn_frame, text="RefreshAll", width=10, command=self.refresh_profiles).pack(pady=2)
+        ttk.Button(btn_frame, text="Close", width=10, command=self.close_checked).pack(pady=2)
+
+        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+
+        # All profiles buttons
+        ttk.Button(btn_frame, text="Show All", width=10, command=self.show_all).pack(pady=2)
+        ttk.Button(btn_frame, text="MinimizeAll", width=10, command=self.minimize_all).pack(pady=2)
+        ttk.Button(btn_frame, text="Close All", width=10, command=self.close_all).pack(pady=2)
+
+        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+
+        # Selection buttons
+        ttk.Button(btn_frame, text="Select All", width=10, command=self.select_all).pack(pady=2)
+        ttk.Button(btn_frame, text="Deselect All", width=10, command=self.deselect_all).pack(pady=2)
+
         # Left side - Profile list with checkboxes
         list_frame = ttk.Frame(content_frame)
         list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -140,29 +163,6 @@ class MultiloginWindowManager:
         scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
         scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Right side - Buttons
-        btn_frame = ttk.Frame(content_frame)
-        btn_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
-
-        # Single profile buttons
-        ttk.Button(btn_frame, text="Show", width=10, command=self.show_checked).pack(pady=2)
-        ttk.Button(btn_frame, text="Minimize", width=10, command=self.minimize_checked).pack(pady=2)
-        ttk.Button(btn_frame, text="RefreshAll", width=10, command=self.refresh_profiles).pack(pady=2)
-        ttk.Button(btn_frame, text="Close", width=10, command=self.close_checked).pack(pady=2)
-
-        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
-
-        # All profiles buttons
-        ttk.Button(btn_frame, text="Show All", width=10, command=self.show_all).pack(pady=2)
-        ttk.Button(btn_frame, text="MinimizeAll", width=10, command=self.minimize_all).pack(pady=2)
-        ttk.Button(btn_frame, text="Close All", width=10, command=self.close_all).pack(pady=2)
-
-        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
-
-        # Selection buttons
-        ttk.Button(btn_frame, text="Select All", width=10, command=self.select_all).pack(pady=2)
-        ttk.Button(btn_frame, text="Deselect All", width=10, command=self.deselect_all).pack(pady=2)
 
         # URL input at bottom (no frame, like original)
         url_row = ttk.Frame(self.main_frame)
