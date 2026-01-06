@@ -39,7 +39,7 @@ psapi = ctypes.windll.psapi
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.4")
+        self.root.title("Multilogin Window Manager v1.5")
         self.root.geometry("500x500")
         self.root.resizable(True, True)
 
@@ -291,11 +291,16 @@ class MultiloginWindowManager:
         return title[:18] + ".." if len(title) > 18 else title
 
     def extract_tab_title(self, title):
+        # Browser titles are usually: "Page Title - Browser Name"
+        # We want the page title (first part before " - ")
         if " - " in title:
             parts = title.split(" - ")
-            if len(parts) >= 2:
-                tab = parts[-2] if len(parts) > 2 else parts[-1]
-                return tab[:20] + ".." if len(tab) > 20 else tab
+            # First part is usually the page/website title
+            tab = parts[0].strip()
+            # If first part looks like a profile name (DC##), try second part
+            if tab.startswith("DC") and tab[2:].split()[0].isdigit() and len(parts) > 1:
+                tab = parts[1].strip()
+            return tab[:20] + ".." if len(tab) > 20 else tab
 
         return title[:20] + ".." if len(title) > 20 else title
 
