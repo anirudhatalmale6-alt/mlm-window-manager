@@ -61,7 +61,7 @@ def resize_window_33(hwnd, index=0):
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.8")
+        self.root.title("Multilogin Window Manager v1.9")
         self.root.geometry("500x500")
         self.root.resizable(True, True)
 
@@ -460,12 +460,11 @@ class MultiloginWindowManager:
         if not checked:
             self.status_var.set("No profiles selected")
             return
-        for i, profile in enumerate(checked):
+        for profile in checked:
             user32.ShowWindow(profile["hwnd"], SW_RESTORE)
-            resize_window_33(profile["hwnd"], i)  # Resize to 33% and position
             user32.SetForegroundWindow(profile["hwnd"])
             time.sleep(0.1)
-        self.status_var.set(f"Showing {len(checked)} profiles at 33% size")
+        self.status_var.set(f"Showing {len(checked)} selected profiles")
 
     def minimize_checked(self):
         checked = self.get_checked_profiles()
@@ -488,10 +487,9 @@ class MultiloginWindowManager:
             self.root.after(1000, self.refresh_profiles)
 
     def show_all(self):
-        for i, profile in enumerate(self.profiles):
+        for profile in self.profiles:
             user32.ShowWindow(profile["hwnd"], SW_RESTORE)
-            resize_window_33(profile["hwnd"], i)  # Resize to 33% and position
-        self.status_var.set(f"Showing all {len(self.profiles)} profiles at 33% size")
+        self.status_var.set(f"Showing all {len(self.profiles)} profiles")
 
     def minimize_all(self):
         for profile in self.profiles:
