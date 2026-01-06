@@ -39,7 +39,7 @@ psapi = ctypes.windll.psapi
 class MultiloginWindowManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multilogin Window Manager v1.5")
+        self.root.title("Multilogin Window Manager v1.6")
         self.root.geometry("500x500")
         self.root.resizable(True, True)
 
@@ -268,7 +268,23 @@ class MultiloginWindowManager:
         EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
         user32.EnumWindows(EnumWindowsProc(enum_callback), 0)
 
-        return windows
+        # Deduplicate by PID - keep only one window per browser profile
+        seen_pids = {}
+        unique_windows = []
+        for w in windows:
+            pid = w["pid"]
+            if pid not in seen_pids:
+                seen_pids[pid] = w
+                unique_windows.append(w)
+            else:
+                # Keep the window with the more informative title (longer usually means actual page)
+                if len(w["title"]) > len(seen_pids[pid]["title"]):
+                    # Replace with better window
+                    idx = unique_windows.index(seen_pids[pid])
+                    unique_windows[idx] = w
+                    seen_pids[pid] = w
+
+        return unique_windows
 
     def is_multilogin_profile(self, title):
         indicators = ["--proxy", "DC", "Profile", "Mimic"]
