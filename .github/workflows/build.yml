@@ -1,0 +1,41 @@
+name: Build MLM v2
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install requests keyboard Pillow pyinstaller gspread google-auth
+
+      - name: Create service account file
+        run: |
+          [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${{ secrets.SERVICE_ACCOUNT_JSON }}")) | Out-File -Encoding utf8 service_account.json
+        shell: pwsh
+
+      - name: Build EXE
+        run: |
+          pyinstaller --onefile --windowed --name MLM_Window_Manager --add-data "service_account.json;." mlm_manager.py
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0.${{ github.run_number }}
+          name: MLM Window Manager v2.0 Build ${{ github.run_number }}
+          files: dist/MLM_Window_Manager.exe
+          make_latest: true
